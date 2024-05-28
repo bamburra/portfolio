@@ -3,63 +3,117 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gráfico de Barras com D3.js</title>
+    <title>Gráfico de Linhas Interativo com D3.js</title>
     <script src="https://d3js.org/d3.v7.min.js"></script>
     <style>
-        .bar {
-            fill: steelblue;
-        }
-        .bar:hover {
-            fill: orange;
+        .line {
+            fill: none;
+            stroke-width: 2;
         }
         .axis-label {
             font-size: 14px;
         }
+        .tooltip {
+            position: absolute;
+            background-color: white;
+            border: 1px solid black;
+            padding: 5px;
+            pointer-events: none;
+        }
     </style>
 </head>
 <body>
-    <svg width="600" height="400"></svg>
+    <svg width="800" height="500"></svg>
+    <div class="tooltip" style="opacity: 0;"></div>
     <script>
-        const data = [30, 80, 45, 60, 20, 90, 50];
+        const data = [
+            {date: new Date(2024, 0, 1), valueA: 30, valueB: 70},
+            {date: new Date(2024, 1, 1), valueA: 50, valueB: 90},
+            {date: new Date(2024, 2, 1), valueA: 80, valueB: 60},
+            {date: new Date(2024, 3, 1), valueA: 60, valueB: 100},
+            {date: new Date(2024, 4, 1), valueA: 90, valueB: 80},
+        ];
 
-        const width = 600;
-        const height = 400;
-        const margin = {top: 20, right: 30, bottom: 40, left: 40};
+        const width = 800;
+        const height = 500;
+        const margin = {top: 20, right: 30, bottom: 40, left: 50};
 
         const svg = d3.select("svg")
             .attr("width", width)
             .attr("height", height);
 
-        const x = d3.scaleBand()
-            .domain(data.map((d, i) => i))
-            .range([margin.left, width - margin.right])
-            .padding(0.1);
+        const x = d3.scaleTime()
+            .domain(d3.extent(data, d => d.date))
+            .range([margin.left, width - margin.right]);
 
         const y = d3.scaleLinear()
-            .domain([0, d3.max(data)])
+            .domain([0, d3.max(data, d => Math.max(d.valueA, d.valueB))])
             .nice()
             .range([height - margin.bottom, margin.top]);
 
-        svg.append("g")
-            .attr("fill", "steelblue")
-          .selectAll("rect")
-          .data(data)
-          .join("rect")
-            .attr("class", "bar")
-            .attr("x", (d, i) => x(i))
-            .attr("y", d => y(d))
-            .attr("height", d => y(0) - y(d))
-            .attr("width", x.bandwidth());
+        const lineA = d3.line()
+            .x(d => x(d.date))
+            .y(d => y(d.valueA));
+
+        const lineB = d3.line()
+            .x(d => x(d.date))
+            .y(d => y(d.valueB));
 
         svg.append("g")
-            .call(d3.axisLeft(y))
-            .attr("transform", `translate(${margin.left},0)`)
-            .attr("class", "axis-label");
-
-        svg.append("g")
-            .call(d3.axisBottom(x).tickFormat(i => i + 1).tickSizeOuter(0))
             .attr("transform", `translate(0,${height - margin.bottom})`)
+            .call(d3.axisBottom(x).ticks(5))
             .attr("class", "axis-label");
+
+        svg.append("g")
+            .attr("transform", `translate(${margin.left},0)`)
+            .call(d3.axisLeft(y))
+            .attr("class", "axis-label");
+
+        svg.append("path")
+            .datum(data)
+            .attr("class", "line")
+            .attr("d", lineA)
+            .attr("stroke", "steelblue");
+
+        svg.append("path")
+            .datum(data)
+            .attr("class", "line")
+            .attr("d", lineB)
+            .attr("stroke", "orange");
+
+        const tooltip = d3.select(".tooltip");
+
+        svg.selectAll("circle.valueA")
+            .data(data)
+            .enter().append("circle")
+            .attr("class", "valueA")
+            .attr("cx", d => x(d.date))
+            .attr("cy", d => y(d.valueA))
+            .attr("r", 5)
+            .attr("fill", "steelblue")
+            .on("mouseover", (event, d) => {
+                tooltip.style("opacity", 1)
+                    .html(`Date: ${d.date.toDateString()}<br>Value A: ${d.valueA}`)
+                    .style("left", (event.pageX + 5) + "px")
+                    .style("top", (event.pageY - 28) + "px");
+            })
+            .on("mouseout", () => tooltip.style("opacity", 0));
+
+        svg.selectAll("circle.valueB")
+            .data(data)
+            .enter().append("circle")
+            .attr("class", "valueB")
+            .attr("cx", d => x(d.date))
+            .attr("cy", d => y(d.valueB))
+            .attr("r", 5)
+            .attr("fill", "orange")
+            .on("mouseover", (event, d) => {
+                tooltip.style("opacity", 1)
+                    .html(`Date: ${d.date.toDateString()}<br>Value B: ${d.valueB}`)
+                    .style("left", (event.pageX + 5) + "px")
+                    .style("top", (event.pageY - 28) + "px");
+            })
+            .on("mouseout", () => tooltip.style("opacity", 0));
     </script>
 </body>
 </html>
